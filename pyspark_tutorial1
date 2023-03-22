@@ -1,0 +1,271 @@
+Spark Dataframe - Pandas Excel R Spark 2.0 higher
+-------------------------------------------------
+	Hold data in column and row
+	column variable and feature 
+	row hold data
+
+Spark early -> had only RDD -> difficult to learn -> spark 2.0 with load of Api
+
+To work with spark dataframe 
+	we have to start sparksession
+	from pyspark.sql import SparkSession
+	spark = SparkSession.builder.appname('Basics').getOrCreate()
+	
+read json file
+	df = spark.read.json('file.json') - recomended to have to file in jupyter notebook path else start jupyter from where file exist
+					else you have to provide the file path that shouldnt be having space
+
+to show the df
+	df.show()
+	
+to know the schema
+	df.printSchema()
+	root - > column -> datatype -> nullable ==true
+
+to have only columns
+	df.columns
+	it retruns python list as column names, you dont have to provide parenthisis
+
+Describe df It provides statistical summary of numeric column in the dataframe
+	df.describe().show()
+
+To Create custom schema where the data and its data type is not that great
+
+	from pyspark.sql.types import(StructField, StringType, IntegerType, StructType) # if the data is getting long line better have paranthesis
+	data_schema = [StructField('Age', IntegerType(), True)] we can create list of struct feild [] the pass column name, datatype, 
+								boolean to   	 decide where field can be null
+	data_schema = [StructField('Name', StringType(), True)]
+	
+	final_struc = StructType(fields = data_schema)
+
+	to apply the above created schema for the reading dataset
+	
+	df = spark.read.json('filename', schema = final_struc)
+	df.show()
+	
+Select vs Grab a data
+	
+	df('age') -> 
+	type(df('age'))- > pyspark.sql.column.column -> get column object -> Returns column 
+	
+	to get dataframe
+	df.select('age').show() -> we can see a dataframe -> return dataframe single column
+	type(df.select('age')) - > returns the dataframe
+	
+	to check row object
+	df.head(2) - grabs top 2 rows - produce list of row objects
+		Row(age=none, name='michela')
+	type(df.head(2)[0]) - returns pspark.sql.types.row
+	
+	To select multiple columns
+	df.select(['age','name']).show()
+	
+	To add new column
+	df.withColumn('Name of New column', df['age']*2).show()
+	it returns new df, adding a column or replacing existing
+	
+	To rename a column
+	df.withColumnRenamed('old column', 'New column Name').show()
+	
+Spark SQL
+	Spark.sql it interact with sql queries
+	df.createOrReplaceTempView('people') - registered the sql temp view
+	results = spark.sql("Select * from people")
+	results.show()	
+	 
+	new_results = spark.sql("Select * from people where age = 30")
+	new_results.show()
+	
+Filter out data from dataframe
+	from pyspark.sql import SparkSession
+	spark = SparkSession.builer().appName('ops').getOrCreate()
+	df = spark.read.csv('apple_stock.csv', inferschema = True, Header = True)// Inferschema possible in csv not in json, inferschema will read 		 table structure, header means first row in csv are column names.
+		
+	df.printSchema();
+	df.show()
+	df.head(3)[0] //first 3 rows object, taking the first object from the row
+	
+	df methods
+	df.filter("close < 500").show()
+	df.filter("close < 500").select('open').show()
+	df.filter("close < 500").select(['open', 'close']).show()//multiple columns passed as list in []	
+	df.filter(df['close'] <500).show()
+	df.filter(df['close'] <500).select(['Volume']).show()
+	
+	filter based on multiple conditions
+	df.filter(df['close'] < 200 and df['open'] > 200).show()
+		this will throw an error "Cannot convert column into bool: please use & or | symbols so changing will fix
+		& - and
+		| - OR
+		~ - NOT Operator &~
+	df.filter(df['close'] < 200 & df['open'] > 200).show()	
+		Again this will throw p4jerror python for java this error doest real tell what is happen
+		soultion we need distinctly split and pass it in Paranthesis
+	df.filter( (df['close'] < 200) & (df['open'] > 200) ).show()
+	
+	
+	specific row instances
+	df.filter(df['Low'] == 197.16).show() // when we know the data we can filter
+	
+	to play around with data use collect()
+	result = df.filter(df['Low'] == 197.16).show() // when we know the data we can filter
+	show() - just displays
+	We need to store the results 
+	
+	give list of items
+	result[]
+	row = result[0] - first item in the list
+	row.asDict() - converting it to dictonary 
+	
+	row.asDict().['Volume'] - giving the key from dictonary 
+
+
+Groupby and Aggregate Operations
+	Allows groupby rows based on columns 	
+	then we can use aggregate function of the data - it combines multiple row to single output
+	
+	from pyspark.sql import SparkSession
+	spark = SparkSession.builder().appName('Agg').getOrCreate()
+	
+	df = spark.read.csv('sales_info.csv', inferschema=True, header=True)
+	df.printSchema()
+	
+	df.groupBy("Company") - we get groupdata object at in memory location
+	df.groupBy('Company').mean().show() - mean get the statistical information mean, sum, count(Aggregate functions)
+		to checkout the functions use link: spark.apache.org/docs/lates/api/python/pyspark.sql.html#module-pyspark.sql.functions
+	 
+	 Agg method
+	 df.agg( {'Sales' : 'sum'}).show() - Dictonary Key as column name and 'Sum' Retrun all the columes , 'Max', 'Min
+	 
+	 or 
+	 
+	 using grouby
+	 group_data = df.groupBy("Company")
+	 group_data.agg({'Sales':'Max'}).show() - Dictonary Key as column name and 'Sum' 
+	
+	
+	import function from spark
+	from pyspark.sql.fucntions import countDisntinct, avg, stddev (hit tab after import)
+	
+	combine using select column
+	
+	df.select(countDistinct('Sales')).show() - returns distinct number of sales value
+	df.select(avg('Sales')).show()
+	df.select(avg('Sales').alias('Average Sales')).show() - Giving column alias names
+	
+	df.select(stddev('Sales')).show() - by default it will retrun ugly column name and large float value
+	
+	we can format this by using 
+	from pysaprk.sql.functions import format_number
+	sales_std = df.select(std_dev('sale').alias('std'))
+	sales_std.show()
+	
+	formatting the display number
+	sales_std.select(format_number('std', 2).alias('std')).show()
+	
+	
+	df.orderBy('sales').show() - goes in Ascending order
+	df.orderBy(df['sales'].desc()).show() - goes in desending value
+	
+	
+Handle Missing Data
+	Datasource may have missing data - Keep missing data using NULL - Drop the missing data - Fill missing data with some other value
+	
+	from pyspark.sql import SparkSession
+	spark = SparkSession.builder().appName('missing value').getOrCreate()
+	
+	df = spark.read.csv('ContainsNull.csv', header=True, inferSchema = True)
+	thresh
+	df.na.drop.show(thresh=2) - drop missing data and we can specify a threshold argument i.e atleast row must of 2 non null values
+	how
+	df.na.drop.show(how='all') - default is set on how='any' if any colum has null, 'all' only drop if all values are null values
+	subset
+	df.na.drop.show(subset=['Sales']).show()  - optional list of column name with null values, pass column names as list, doesnt mater if any column has null value if sales has null will be considered
+	
+	fill missing values
+	first print the schema and understand the schema datatype
+	df.printSchema() 
+		1st column as string
+		2nd column as int
+		3rd column as double
+	df.na.fill('FILL VALUE').show() - spark fill is intelegent enough to fill null vaues with specified text only for String columns
+	df.na.fill(0).show() - spark fill value only to its integer columns
+	df.na.fill('No Name', subset=['Name']).show() - this step is for better understanding
+	
+	Common pratice - fill value with common mean value
+	
+	from pyspark.sql.funcation import mean
+	mean_val = df.select(mean(df['sales'])).collect()
+	mean_val - retruns list row object
+	mean_sales = mean_val[0][0]
+	df.na.fill(mean_sales,['sales']).show()
+	
+	or we can write it in online
+	df.na.fill(df.select(mean(df['sales'])).collect()[0][0], ['sales']).show()
+	
+Dates and TimeStamps
+	from pyspark.sql import SparkSession
+	spark = SparkSession.builder().appName("Dates&TimeStamp").getOrCreate()
+	
+	df = spark.read.csv('appl_stock.csv', header = True, Inferschema = True)
+	df.select(['Date','Opening_Price']).show()
+	
+	from pysprark.sql import (dayofmonth, hour, 
+				  dayofyear, month, 
+				  year, weekofyear,
+				  format_number, date_format)
+	
+	df.select(dayofmonth(df['dates'])).show()
+
+
+Spark Streaming
+----------------
+
+Kafka/Flume/HDFS S3/Kinesis/Twitter => Spark Streaming => HDFS/DB/Dashboards(Sudo dashboards)
+
+Input data stream => Spark Streaming => Batches of input data => Spark Engine => Batches of process data
+
+Using Terminal as live stream 
+process data using notebook
+
+Spark context - it was used before spark 2.0
+Spak context is maily used in spark streaming
+We will be using RDD syntax
+It can be done by connecting to the local stream of data using Terminal through socket connection
+
+
+Create Spark Steaming application and count word
+================================================
+Steps to create Streaming will be:
+	Create Spark Context - smilar to spark session
+	Create StreamingContext
+	Create a Socket Text Stream - connecting a socket eg: jypter notebook or ipyfile through terminal
+	Read in the lines as a "DStream"
+	
+Working with data
+	Take input line into list words
+	Map each word to a tuple eg:(word, 1)
+	Then group reduce the tuple by the word(key) then sum up the second argument(number one)
+	
+	Note: RDD syntax rely on  expressions
+	
+
+First :
+	import findspark
+	findspark.init('/home/karthick/spark-3.3.0-bin-hadoop3')
+	from pyspark import SparkContext
+	from pyspark.streaming import StreamingContext
+	sc = SparkContext('local[2]','networkwordcount')
+	ssc = StreamingContext(sc,1)	
+	#this going to conect a DStream or DataStream connect to a host name  and local port
+	lines = ssc.socketTextStream('localhost', 9999)
+	words = lines.flatMap(lambda line: line.split(' '))
+	pairs = words.map(lambda word: (word,1))	
+	word_counts = pairs.reduceByKey(lambda num1, num2: num1+num2)
+	#pprint is pretty print
+	word_counts.pprint()
+	ssc.start() - before starting this go to CLI
+
+	Type the below 
+	nc -lk 9999 
+	now type in CLI - things will appear in the notebook
